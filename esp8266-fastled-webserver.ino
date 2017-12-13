@@ -24,16 +24,18 @@ extern "C" {
 }
 
 #include <ESP8266WiFi.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
 #include <ESP8266WebServer.h>
 #include <FS.h>
 #include <EEPROM.h>
-#include <IRremoteESP8266.h>
+//#include <IRremoteESP8266.h>
 #include "GradientPalettes.h"
 
-#define RECV_PIN 12
-IRrecv irReceiver(RECV_PIN);
+//#define RECV_PIN 12
+//IRrecv irReceiver(RECV_PIN);
 
-#include "Commands.h"
+//#include "Commands.h"
 
 const bool apMode = false;
 
@@ -41,17 +43,19 @@ const bool apMode = false;
 const char WiFiAPPSK[] = "";
 
 // Wi-Fi network to connect to (if not in AP mode)
-const char* ssid = "";
-const char* password = "";
+//const char* ssid = "";
+//const char* password = "";
+const char *ssid = "LBS-Corp";
+const char *password = "!@#LBScorp";
 
 ESP8266WebServer server(80);
 
-#define DATA_PIN      D8     // for Huzzah: Pins w/o special function:  #4, #5, #12, #13, #14; // #16 does not work :(
-#define LED_TYPE      WS2812
-#define COLOR_ORDER   GRB
-#define NUM_LEDS      24
+#define DATA_PIN      D7     // for Huzzah: Pins w/o special function:  #4, #5, #12, #13, #14; // #16 does not work :(
+#define LED_TYPE      WS2811
+#define COLOR_ORDER   RGB
+#define NUM_LEDS      50
 
-#define MILLI_AMPS         2000     // IMPORTANT: set here the max milli-Amps of your power supply 5V 2A = 2000
+#define MILLI_AMPS         1000     // IMPORTANT: set here the max milli-Amps of your power supply 5V 2A = 2000
 #define FRAMES_PER_SECOND  120 // here you can control the speed. With the Access Point / Web Server the animations run a bit slower.
 
 CRGB leds[NUM_LEDS];
@@ -115,7 +119,7 @@ void setup(void) {
 
   FastLED.setBrightness(brightness);
 
-  irReceiver.enableIRIn(); // Start the receiver
+//  irReceiver.enableIRIn(); // Start the receiver
 
   Serial.println();
   Serial.print( F("Heap: ") ); Serial.println(system_get_free_heap_size());
@@ -180,6 +184,25 @@ void setup(void) {
     Serial.print(WiFi.localIP());
     Serial.println(" in your browser");
   }
+
+  ArduinoOTA.onStart([]() {
+    Serial.println("Start");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+  ArduinoOTA.begin();
 
   //  server.serveStatic("/", SPIFFS, "/index.htm"); // ,"max-age=86400"
 
@@ -327,12 +350,14 @@ const String paletteNames[paletteCount] = {
 };
 
 void loop(void) {
+  ArduinoOTA.handle();
+
   // Add entropy to random number generator; we use a lot of it.
   random16_add_entropy(random(65535));
 
   server.handleClient();
 
-  handleIrInput();
+//  handleIrInput();
 
   if (power == 0) {
     fill_solid(leds, NUM_LEDS, CRGB::Black);
@@ -374,212 +399,212 @@ void loop(void) {
   FastLED.delay(1000 / FRAMES_PER_SECOND);
 }
 
-void handleIrInput()
-{
-  InputCommand command = readCommand(defaultHoldDelay);
-
-  if (command != InputCommand::None) {
-    Serial.print("command: ");
-    Serial.println((int) command);
-  }
-
-  switch (command) {
-    case InputCommand::Up: {
-        adjustPattern(true);
-        break;
-      }
-    case InputCommand::Down: {
-        adjustPattern(false);
-        break;
-      }
-    case InputCommand::Power: {
-        power = power == 0 ? 1 : 0;
-        break;
-      }
-    case InputCommand::BrightnessUp: {
-        adjustBrightness(true);
-        break;
-      }
-    case InputCommand::BrightnessDown: {
-        adjustBrightness(false);
-        break;
-      }
-    case InputCommand::PlayMode: { // toggle pause/play
-        autoplayEnabled = !autoplayEnabled;
-        break;
-      }
-
-    // pattern buttons
-
-    case InputCommand::Pattern1: {
-        setPattern(0);
-        break;
-      }
-    case InputCommand::Pattern2: {
-        setPattern(1);
-        break;
-      }
-    case InputCommand::Pattern3: {
-        setPattern(2);
-        break;
-      }
-    case InputCommand::Pattern4: {
-        setPattern(3);
-        break;
-      }
-    case InputCommand::Pattern5: {
-        setPattern(4);
-        break;
-      }
-    case InputCommand::Pattern6: {
-        setPattern(5);
-        break;
-      }
-    case InputCommand::Pattern7: {
-        setPattern(6);
-        break;
-      }
-    case InputCommand::Pattern8: {
-        setPattern(7);
-        break;
-      }
-    case InputCommand::Pattern9: {
-        setPattern(8);
-        break;
-      }
-    case InputCommand::Pattern10: {
-        setPattern(9);
-        break;
-      }
-    case InputCommand::Pattern11: {
-        setPattern(10);
-        break;
-      }
-    case InputCommand::Pattern12: {
-        setPattern(11);
-        break;
-      }
-
-    // custom color adjustment buttons
-
-    case InputCommand::RedUp: {
-        solidColor.red += 8;
-        setSolidColor(solidColor);
-        break;
-      }
-    case InputCommand::RedDown: {
-        solidColor.red -= 8;
-        setSolidColor(solidColor);
-        break;
-      }
-    case InputCommand::GreenUp: {
-        solidColor.green += 8;
-        setSolidColor(solidColor);
-        break;
-      }
-    case InputCommand::GreenDown: {
-        solidColor.green -= 8;
-        setSolidColor(solidColor);
-        break;
-      }
-    case InputCommand::BlueUp: {
-        solidColor.blue += 8;
-        setSolidColor(solidColor);
-        break;
-      }
-    case InputCommand::BlueDown: {
-        solidColor.blue -= 8;
-        setSolidColor(solidColor);
-        break;
-      }
-
-    // color buttons
-
-    case InputCommand::Red: {
-        setSolidColor(CRGB::Red);
-        break;
-      }
-    case InputCommand::RedOrange: {
-        setSolidColor(CRGB::OrangeRed);
-        break;
-      }
-    case InputCommand::Orange: {
-        setSolidColor(CRGB::Orange);
-        break;
-      }
-    case InputCommand::YellowOrange: {
-        setSolidColor(CRGB::Goldenrod);
-        break;
-      }
-    case InputCommand::Yellow: {
-        setSolidColor(CRGB::Yellow);
-        break;
-      }
-
-    case InputCommand::Green: {
-        setSolidColor(CRGB::Green);
-        break;
-      }
-    case InputCommand::Lime: {
-        setSolidColor(CRGB::Lime);
-        break;
-      }
-    case InputCommand::Aqua: {
-        setSolidColor(CRGB::Aqua);
-        break;
-      }
-    case InputCommand::Teal: {
-        setSolidColor(CRGB::Teal);
-        break;
-      }
-    case InputCommand::Navy: {
-        setSolidColor(CRGB::Navy);
-        break;
-      }
-
-    case InputCommand::Blue: {
-        setSolidColor(CRGB::Blue);
-        break;
-      }
-    case InputCommand::RoyalBlue: {
-        setSolidColor(CRGB::RoyalBlue);
-        break;
-      }
-    case InputCommand::Purple: {
-        setSolidColor(CRGB::Purple);
-        break;
-      }
-    case InputCommand::Indigo: {
-        setSolidColor(CRGB::Indigo);
-        break;
-      }
-    case InputCommand::Magenta: {
-        setSolidColor(CRGB::Magenta);
-        break;
-      }
-
-    case InputCommand::White: {
-        setSolidColor(CRGB::White);
-        break;
-      }
-    case InputCommand::Pink: {
-        setSolidColor(CRGB::Pink);
-        break;
-      }
-    case InputCommand::LightPink: {
-        setSolidColor(CRGB::LightPink);
-        break;
-      }
-    case InputCommand::BabyBlue: {
-        setSolidColor(CRGB::CornflowerBlue);
-        break;
-      }
-    case InputCommand::LightBlue: {
-        setSolidColor(CRGB::LightBlue);
-        break;
-      }
-  }
-}
+//void handleIrInput()
+//{
+//  InputCommand command = readCommand(defaultHoldDelay);
+//
+//  if (command != InputCommand::None) {
+//    Serial.print("command: ");
+//    Serial.println((int) command);
+//  }
+//
+//  switch (command) {
+//    case InputCommand::Up: {
+//        adjustPattern(true);
+//        break;
+//      }
+//    case InputCommand::Down: {
+//        adjustPattern(false);
+//        break;
+//      }
+//    case InputCommand::Power: {
+//        power = power == 0 ? 1 : 0;
+//        break;
+//      }
+//    case InputCommand::BrightnessUp: {
+//        adjustBrightness(true);
+//        break;
+//      }
+//    case InputCommand::BrightnessDown: {
+//        adjustBrightness(false);
+//        break;
+//      }
+//    case InputCommand::PlayMode: { // toggle pause/play
+//        autoplayEnabled = !autoplayEnabled;
+//        break;
+//      }
+//
+//    // pattern buttons
+//
+//    case InputCommand::Pattern1: {
+//        setPattern(0);
+//        break;
+//      }
+//    case InputCommand::Pattern2: {
+//        setPattern(1);
+//        break;
+//      }
+//    case InputCommand::Pattern3: {
+//        setPattern(2);
+//        break;
+//      }
+//    case InputCommand::Pattern4: {
+//        setPattern(3);
+//        break;
+//      }
+//    case InputCommand::Pattern5: {
+//        setPattern(4);
+//        break;
+//      }
+//    case InputCommand::Pattern6: {
+//        setPattern(5);
+//        break;
+//      }
+//    case InputCommand::Pattern7: {
+//        setPattern(6);
+//        break;
+//      }
+//    case InputCommand::Pattern8: {
+//        setPattern(7);
+//        break;
+//      }
+//    case InputCommand::Pattern9: {
+//        setPattern(8);
+//        break;
+//      }
+//    case InputCommand::Pattern10: {
+//        setPattern(9);
+//        break;
+//      }
+//    case InputCommand::Pattern11: {
+//        setPattern(10);
+//        break;
+//      }
+//    case InputCommand::Pattern12: {
+//        setPattern(11);
+//        break;
+//      }
+//
+//    // custom color adjustment buttons
+//
+//    case InputCommand::RedUp: {
+//        solidColor.red += 8;
+//        setSolidColor(solidColor);
+//        break;
+//      }
+//    case InputCommand::RedDown: {
+//        solidColor.red -= 8;
+//        setSolidColor(solidColor);
+//        break;
+//      }
+//    case InputCommand::GreenUp: {
+//        solidColor.green += 8;
+//        setSolidColor(solidColor);
+//        break;
+//      }
+//    case InputCommand::GreenDown: {
+//        solidColor.green -= 8;
+//        setSolidColor(solidColor);
+//        break;
+//      }
+//    case InputCommand::BlueUp: {
+//        solidColor.blue += 8;
+//        setSolidColor(solidColor);
+//        break;
+//      }
+//    case InputCommand::BlueDown: {
+//        solidColor.blue -= 8;
+//        setSolidColor(solidColor);
+//        break;
+//      }
+//
+//    // color buttons
+//
+//    case InputCommand::Red: {
+//        setSolidColor(CRGB::Red);
+//        break;
+//      }
+//    case InputCommand::RedOrange: {
+//        setSolidColor(CRGB::OrangeRed);
+//        break;
+//      }
+//    case InputCommand::Orange: {
+//        setSolidColor(CRGB::Orange);
+//        break;
+//      }
+//    case InputCommand::YellowOrange: {
+//        setSolidColor(CRGB::Goldenrod);
+//        break;
+//      }
+//    case InputCommand::Yellow: {
+//        setSolidColor(CRGB::Yellow);
+//        break;
+//      }
+//
+//    case InputCommand::Green: {
+//        setSolidColor(CRGB::Green);
+//        break;
+//      }
+//    case InputCommand::Lime: {
+//        setSolidColor(CRGB::Lime);
+//        break;
+//      }
+//    case InputCommand::Aqua: {
+//        setSolidColor(CRGB::Aqua);
+//        break;
+//      }
+//    case InputCommand::Teal: {
+//        setSolidColor(CRGB::Teal);
+//        break;
+//      }
+//    case InputCommand::Navy: {
+//        setSolidColor(CRGB::Navy);
+//        break;
+//      }
+//
+//    case InputCommand::Blue: {
+//        setSolidColor(CRGB::Blue);
+//        break;
+//      }
+//    case InputCommand::RoyalBlue: {
+//        setSolidColor(CRGB::RoyalBlue);
+//        break;
+//      }
+//    case InputCommand::Purple: {
+//        setSolidColor(CRGB::Purple);
+//        break;
+//      }
+//    case InputCommand::Indigo: {
+//        setSolidColor(CRGB::Indigo);
+//        break;
+//      }
+//    case InputCommand::Magenta: {
+//        setSolidColor(CRGB::Magenta);
+//        break;
+//      }
+//
+//    case InputCommand::White: {
+//        setSolidColor(CRGB::White);
+//        break;
+//      }
+//    case InputCommand::Pink: {
+//        setSolidColor(CRGB::Pink);
+//        break;
+//      }
+//    case InputCommand::LightPink: {
+//        setSolidColor(CRGB::LightPink);
+//        break;
+//      }
+//    case InputCommand::BabyBlue: {
+//        setSolidColor(CRGB::CornflowerBlue);
+//        break;
+//      }
+//    case InputCommand::LightBlue: {
+//        setSolidColor(CRGB::LightBlue);
+//        break;
+//      }
+//  }
+//}
 
 void loadSettings()
 {
